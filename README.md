@@ -2,6 +2,7 @@
 
 > Agentic LLM pipeline that uses **Lean4** as a formal verifier for GSM8K math problems — with an automated verify-repair loop that catches reasoning errors even when the final answer is accidentally correct.
 
+>LLMs fail at math not because they can't reason, but because they have no external ground truth to fail against. Lean4 changes that.
 ## Results
 
 | Metric | Lean pipeline (n=50) | Baseline LLM (n=200) |
