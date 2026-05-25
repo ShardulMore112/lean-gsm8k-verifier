@@ -6,8 +6,12 @@ import re
 
 def extract_answer(text: str) -> str:
     """Extract final numeric answer from LLM response."""
-    numbers = re.findall(r'\d+', text.replace(',', ''))
-    return numbers[-1] if numbers else ""
+    # Match full numbers including decimals, strip commas first
+    numbers = re.findall(r'\d+(?:\.\d+)?', text.replace(',', ''))
+    if not numbers:
+        return ""
+    # Take the last number and return only the integer part
+    return str(int(float(numbers[-1])))
 
 def get_gsm8k_answer(solution: str) -> str:
     """Extract ground truth answer from GSM8K solution string."""
