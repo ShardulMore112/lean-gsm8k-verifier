@@ -1,5 +1,5 @@
 from datasets import load_dataset
-from llm import client
+from llm import _chat
 import json
 import time
 import re
@@ -20,15 +20,11 @@ def get_gsm8k_answer(solution: str) -> str:
 
 def baseline_solve(problem: str) -> dict:
     """Solve without Lean — just ask LLM for the answer directly."""
-    response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
-        messages=[
-            {"role": "system", "content": "You are a math assistant. Solve the problem step by step. At the end, state the final answer as a number on the last line."},
-            {"role": "user", "content": f"Problem: {problem}"}
-        ],
-        temperature=0.1
-    )
-    raw = response.choices[0].message.content.strip()
+    messages = [
+        {"role": "system", "content": "You are a math assistant. Solve the problem step by step. At the end, state the final answer as a number on the last line."},
+        {"role": "user", "content": f"Problem: {problem}"}
+    ]
+    raw = _chat(messages)
     answer = extract_answer(raw)
     return {"answer": answer, "raw": raw}
 
