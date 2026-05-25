@@ -6,12 +6,13 @@
 
 ## Results
 
-| Metric | Lean pipeline (n=50) | Baseline LLM (n=200) |
-|---|---|---|
-| Accuracy (pass@1) | 80% (40/50) | 95% (190/200) |
-| Accuracy (pass@5) | **94%** (47/50) | — |
-| Avg repair iterations | 1.21 (solved only) | — |
-| Failed | 6% (3/50) | 5% (10/200) |
+| Metric                        | Lean Pipeline | Baseline |
+|-------------------------------|---------------|----------|
+| pass@1                        | 84% (168/200) | 96% (192/200) |
+| pass@5                        | 97% (194/200) | —        |
+| Problems baseline missed, Lean fixed | 8       | —        |
+| Hard failures (5 attempts)    | 6 (3%)        | 8 (4%)   |
+| Avg repair iterations         | ~1.4          | —        |
 
 > **Note:** Full 500-problem evaluation in progress. Results above are on initial subsets.
 
