@@ -69,7 +69,7 @@ lean/
 ![OpenRouter](https://img.shields.io/badge/OpenRouter-API-blue?style=flat)
 
 - **Lean 4.29.1** — formal theorem prover (verifier environment)
-- **Llama 3.3 70B** via Groq API — LLM proof generator
+- **Llama 3.3 70B** via Openrouter API — LLM proof generator
 - **Python** — pipeline orchestration
 - **GSM8K** (openai/gsm8k) — benchmark dataset
 
