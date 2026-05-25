@@ -3,6 +3,7 @@
 > Agentic LLM pipeline that uses **Lean4** as a formal verifier for GSM8K math problems — with an automated verify-repair loop that catches reasoning errors even when the final answer is accidentally correct.
 
 >LLMs fail at math not because they can't reason, but because they have no external ground truth to fail against. Lean4 changes that.
+
 ## Results
 
 | Metric | Lean pipeline (n=50) | Baseline LLM (n=200) |
@@ -63,8 +64,9 @@ lean/
 
 ![Python](https://img.shields.io/badge/Python-3776AB?style=flat&logo=python&logoColor=white)
 ![Lean4](https://img.shields.io/badge/Lean4-4.29.1-orange?style=flat)
-![Groq](https://img.shields.io/badge/Groq-API-red?style=flat)
+<!-- ![Groq](https://img.shields.io/badge/Groq-API-red?style=flat) -->
 ![HuggingFace](https://img.shields.io/badge/HuggingFace-GSM8K-yellow?style=flat)
+![OpenRouter](https://img.shields.io/badge/OpenRouter-API-blue?style=flat)
 
 - **Lean 4.29.1** — formal theorem prover (verifier environment)
 - **Llama 3.3 70B** via Groq API — LLM proof generator
