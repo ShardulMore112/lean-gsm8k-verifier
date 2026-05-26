@@ -105,7 +105,9 @@ See `lean/examples.lean` for the full annotated set.
 ## Stack
 
 ![Python](https://img.shields.io/badge/Python-3776AB?style=flat&logo=python&logoColor=white)
-![Lean4](https://img.shields.io/badge/Lean4-4.29.1-orange?style=flat)
+<p align="center">
+  <img src="https://raw.githubusercontent.com/leanprover/lean4/master/doc/lean_logo.svg" width="180"/>
+</p>
 ![OpenRouter](https://img.shields.io/badge/OpenRouter-API-blue?style=flat)
 ![HuggingFace](https://img.shields.io/badge/HuggingFace-GSM8K-yellow?style=flat)
 
