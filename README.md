@@ -2,77 +2,119 @@
 
 > Agentic LLM pipeline that uses **Lean4** as a formal verifier for GSM8K math problems — with an automated verify-repair loop that catches reasoning errors even when the final answer is accidentally correct.
 
->LLMs fail at math not because they can't reason, but because they have no external ground truth to fail against. Lean4 changes that.
+> *LLMs fail at math not because they can't reason, but because they have no external ground truth to fail against. Lean4 changes that.*
+
+---
 
 ## Results
 
-| Metric                        | Lean Pipeline | Baseline |
-|-------------------------------|---------------|----------|
-| pass@1                        | 84% (168/200) | 96% (192/200) |
-| pass@5                        | 97% (194/200) | —        |
-| Problems baseline missed, Lean fixed | 8       | —        |
-| Hard failures (5 attempts)    | 6 (3%)        | 8 (4%)   |
-| Avg repair iterations         | ~1.4          | —        |
+| Metric | Lean Pipeline | Baseline (LLM only) |
+|---|---|---|
+| pass@1 | **84%** (168/200) | 96% (192/200) |
+| pass@5 (with repair) | **97%** (194/200) | — |
+| Hard failures (5 attempts) | 6 (3%) | 8 (4%) |
+| Avg repair iterations | ~1.4 | — |
+| Problems baseline missed, Lean fixed | 8 | — |
 
-> **Note:** Full 500-problem evaluation in progress. Results above are on initial subsets.
+> Full 500-problem evaluation in progress.
 
 ### What the numbers mean
 
-The Lean pipeline and baseline fail on **different problems** — on 50 shared problems, Lean solved 2 that the baseline missed. The advantage of Lean is not raw accuracy but **verifiability**: the baseline checks only the final number, while Lean verifies every reasoning step as a machine-checked proof. A problem where the LLM reaches the right answer via wrong reasoning would pass the baseline but fail Lean.
+The Lean pipeline and baseline fail on **different problems**. The advantage of Lean is not raw accuracy but **verifiability**: the baseline checks only the final number, while Lean verifies every arithmetic step as a machine-checked proof. A problem where the LLM reaches the right answer via wrong reasoning would pass the baseline but fail Lean — and the repair loop would catch it.
 
-### Failure analysis (Lean pipeline)
+### Failure analysis
 
-All 3 failures hit the 5-attempt maximum and fall into identifiable categories:
+All hard failures (5 attempts, unsolved) fall into identifiable categories:
 
-| Problem type | Example | Why Lean fails |
+| Problem type | Example | Root cause |
 |---|---|---|
-| Relative motion | "John drives 60 mph, turns around..." | Non-linear distance/time reasoning exceeds `omega` |
-| Fractional rate chaining | "Dana runs 4× faster than walk, skips at ½ run..." | Multi-step fractional arithmetic |
-| Implicit unit conversion | "300g bag, 5 servings, 250 cal/serving..." | Implicit division step not expressible as single linear theorem |
+| Relative motion | "John drives 60mph, turns around..." | Non-integer time steps (0.5hr) exceed `omega` |
+| Fractional rate chaining | "Dana runs 4x faster than walk..." | Multi-step fractional arithmetic |
+| Compound interest / percentages | "Price increases by 20% every 2 months..." | Exponentiation not supported by `omega` |
+| Implicit unit conversion | "300g bag, 5 servings, 250 cal/serving..." | Implicit division step |
 
-These failures reflect a known limitation of the `omega` tactic, which is a decision procedure for **linear arithmetic only**. Non-linear or fractional reasoning requires more expressive tactics (`norm_num`, `field_simp`) — a direction for future work.
+All failures trace to one root cause: **`omega` is a decision procedure for linear integer arithmetic only**. Non-linear, fractional, or exponential reasoning requires `norm_num` or `field_simp` (Mathlib) — a direction for future work.
+
+---
 
 ## How it works
 
 ```
 GSM8K problem
      ↓
-LLM (Llama 3.3 70B via Groq)
-generates Lean4 theorem + reasoning
+LLM (Llama 3.3 70B via OpenRouter)
+generates Lean4 theorem + chain-of-thought reasoning
      ↓
-Lean4 verifier checks the theorem
+Lean4 verifier checks the theorem (omega tactic)
      ↓
-✓ pass → log result
-✗ fail → typed error fed back to LLM → retry (max 5 attempts)
+pass  → log result
+fail  → typed Lean error fed back to LLM → retry (max 5 attempts)
 ```
 
-The key insight: instead of checking only the final numeric answer, every reasoning step is expressed as a **formal Lean4 theorem** verified by the `omega` tactic — a decision procedure for linear arithmetic. This catches reasoning errors even when the final answer is accidentally correct.
+The key insight: instead of checking only the final numeric answer, every reasoning step is expressed as a **formal Lean4 theorem** verified by the `omega` tactic. This catches reasoning errors even when the final answer is accidentally correct.
+
+---
 
 ## Architecture
 
 ```
 pipeline/
-├── verifier.py      # calls lean.exe as subprocess, parses errors
-├── llm.py           # prompts LLM to generate Lean4 theorems
-├── repair_loop.py   # verify → fail → feed error back → retry
-└── evaluate.py      # runs on GSM8K subset, logs pass@1 / pass@5
+├── verifier.py      # calls lean.exe as subprocess, parses stdout errors
+├── llm.py           # OpenRouter client with 3-key rotation + rate limit handling
+├── repair_loop.py   # verify → fail → feed typed error back → retry (max 5)
+└── evaluate.py      # checkpoint/resume evaluation, logs pass@1 / pass@5
 lean/
+├── examples.lean    # representative theorems from the pipeline
 ├── lakefile.toml    # Lean4 project config
 └── lean-toolchain   # pins Lean 4.29.1
+results/
+└── results.json     # per-problem breakdown: attempts, lean code, reasoning
 ```
+
+---
+
+## Lean4 examples
+
+Simple theorem (pass@1):
+```lean
+-- Each box holds 12 bottles. 8 boxes. How many bottles?
+theorem solution : 12 * 8 = 96 := by omega
+```
+
+Multi-step theorem:
+```lean
+-- Janet's ducks lay 16 eggs/day. She eats 3, bakes with 4, sells rest at $2.
+-- Reasoning: 16 - 3 - 4 = 9 eggs. 9 * 2 = $18
+theorem solution : (16 - 3 - 4) * 2 = 18 := by omega
+```
+
+Repair loop example (wrong then fixed):
+```lean
+-- Attempt 1 — REJECTED by Lean:
+theorem solution : 180 - (30 * 0 + 80 * 1) = 45 := by omega
+-- Error: omega could not prove the goal
+
+-- Attempt 2 — ACCEPTED after repair:
+theorem solution : 180 - 15 - 120 = 45 := by omega
+```
+
+See `lean/examples.lean` for the full annotated set.
+
+---
 
 ## Stack
 
 ![Python](https://img.shields.io/badge/Python-3776AB?style=flat&logo=python&logoColor=white)
 ![Lean4](https://img.shields.io/badge/Lean4-4.29.1-orange?style=flat)
-<!-- ![Groq](https://img.shields.io/badge/Groq-API-red?style=flat) -->
-![HuggingFace](https://img.shields.io/badge/HuggingFace-GSM8K-yellow?style=flat)
 ![OpenRouter](https://img.shields.io/badge/OpenRouter-API-blue?style=flat)
+![HuggingFace](https://img.shields.io/badge/HuggingFace-GSM8K-yellow?style=flat)
 
 - **Lean 4.29.1** — formal theorem prover (verifier environment)
-- **Llama 3.3 70B** via Openrouter API — LLM proof generator
-- **Python** — pipeline orchestration
-- **GSM8K** (openai/gsm8k) — benchmark dataset
+- **Llama 3.3 70B** via OpenRouter API — LLM proof generator
+- **Python** — pipeline orchestration with checkpoint/resume
+- **GSM8K** (`openai/gsm8k`) — benchmark dataset
+
+---
 
 ## Setup
 
@@ -84,54 +126,45 @@ cd lean-gsm8k-verifier
 # 2. Install Python deps
 pip install -r requirements.txt
 
-# 3. Set API key
+# 3. Set API keys
 cp .env.example .env
-# edit .env and add your GROQ_API_KEY
+# Add your OpenRouter keys: OPENROUTER_API_KEY_1, _2, _3
 
 # 4. Install Lean4
-# Windows: follow https://leanprover.github.io/lean4/doc/setup.html
+# Windows: https://leanprover.github.io/lean4/doc/setup.html
 # Update LEAN_BINARY path in pipeline/verifier.py
 
-# 5. Run evaluation
+# 5. Run evaluation (resumes from checkpoint if interrupted)
 python pipeline/evaluate.py
+
+# 6. Run baseline comparison
+python pipeline/baseline.py
 ```
 
-## Example
-
-**Problem:** Each box holds 12 bottles. If there are 8 boxes, how many bottles in total?
-
-**LLM reasoning:** 8 boxes × 12 bottles = 96 bottles total
-
-**Generated Lean4:**
-```lean
-theorem solution : 12 * 8 = 96 := by omega
-```
-
-**Verifier output:** `Goals accomplished`
-
-**Multi-step example** — Janet's eggs problem:
-```lean
--- Janet's ducks lay 16 eggs/day. She eats 3, bakes with 4, sells rest at $2 each.
-theorem solution : (16 - 3 - 4) * 2 = 18 := by omega
-```
+---
 
 ## Why Lean4?
 
 Most LLM math pipelines check only the final number. Using Lean4 as a verifier means:
 
-- **Step-level correctness** — every arithmetic step is a machine-checked proof, not just the final answer
+- **Step-level correctness** — every arithmetic step is machine-checked, not just the final answer
 - **Structured error feedback** — failures return typed, parseable Lean errors the LLM can act on directly
-- **No heuristics** — the repair loop is grounded in formal logic; pass/fail is deterministic
+- **Deterministic pass/fail** — the repair loop is grounded in formal logic, not heuristics
+- **Differentiable failures** — when the system fails, you know exactly why (wrong arithmetic vs wrong formalization vs tactic limitation)
 
-The tradeoff: Lean's `omega` tactic handles linear arithmetic only, so problems requiring fractions, exponents, or implicit unit conversions can exceed its scope.
+The tradeoff: `omega` handles linear integer arithmetic only. Problems requiring fractions, exponents, or implicit unit conversions fall outside its scope — these are the 3% hard failures.
 
-## Limitations
+---
 
-- Evaluated on a subset of GSM8K test split (full 500-problem run in progress)
-- `omega` tactic covers linear integer arithmetic only — non-linear problems require `norm_num` or `field_simp`
-- Single-theorem formulation may over-simplify multi-step problems (future: chain of theorems per step)
-- Groq API rate limits constrain evaluation throughput (~0.3s sleep between calls)
+## Limitations and future work
+
+- `omega` tactic covers linear integer arithmetic only — extending to `norm_num` (Mathlib) would handle division and percentages
+- Single-theorem formulation may over-simplify multi-step problems — future: chain of theorems per reasoning step
+- Evaluated on GSM8K subset — harder benchmarks (MATH, miniF2F) would stress-test the formalization more
+- OpenRouter rate limits constrain throughput — 3-key rotation with checkpoint/resume mitigates this
+
+---
 
 ## Results log
 
-See `results/results.json` for full per-problem breakdown including per-attempt Lean code and reasoning.
+See `results/results.json` for full per-problem breakdown including per-attempt Lean code, reasoning, and error messages.
