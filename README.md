@@ -168,3 +168,12 @@ The tradeoff: `omega` handles linear integer arithmetic only. Problems requiring
 ## Results log
 
 See `results/results.json` for full per-problem breakdown including per-attempt Lean code, reasoning, and error messages.
+
+## Related work
+
+This project is inspired by and builds on:
+- **Draft, Sketch, Prove** (Jiang et al., 2023) — uses LLMs to generate informal proofs, then formalizes them in Lean4
+- **LEGO-Prover** (Xia et al., 2024) — builds a growing library of verified lemmas for LLM proof search
+- **DeepSeek-Prover** (Xin et al., 2024) — fine-tunes LLMs specifically for Lean4 formalization
+
+This project differs by focusing on **elementary arithmetic verification** as a reliability mechanism for chain-of-thought reasoning, rather than competition-level theorem proving.
